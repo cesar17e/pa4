@@ -9,17 +9,17 @@
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
-#include "network.h"
+#include "network.h" //Teachers code for the listner function--> creates socket for listner
 
 #define BUFLEN 100
 #define QUEUE_SIZE 16
 #define MAX_PLAYERS 100
 #define MOVE_TIMEOUT_MS (5 * 60 * 1000)  // 5 minutes
 
-volatile sig_atomic_t active = 1;
-static char *active_names[MAX_PLAYERS];
-static int active_count = 0;
-static pthread_mutex_t name_mutex = PTHREAD_MUTEX_INITIALIZER;
+volatile int active = 1;
+char *active_names[MAX_PLAYERS];
+int active_count = 0;
+pthread_mutex_t name_mutex;
 
 void handle_sigint(int sig) {
     (void)sig;
@@ -199,7 +199,13 @@ void *handle_game(void *arg) {
 int main(int argc,char **argv){
     if(argc!=2){fprintf(stderr,"Usage: %s <port>\n",argv[0]);exit(1);}  
     install_handlers();
-    int listener=open_listener(argv[1],QUEUE_SIZE);
+    // Dynamically initialize your name_mutex instead of using PTHREAD_MUTEX_INITIALIZER
+    if (pthread_mutex_init(&name_mutex, NULL) != 0) {
+        perror("pthread_mutex_init");
+        exit(1);
+    }
+
+    int listener = open_listener(argv[1],QUEUE_SIZE);
     if(listener<0)exit(1);
     fprintf(stderr,"[LOG] Listening on port %s\n",argv[1]);
     while(active){

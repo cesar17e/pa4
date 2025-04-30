@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PORT=5555
+TC_DIR="testcases/disconnect"
+
+
+make all
+
+
+./rpsd $PORT > /dev/null 2>&1 &
+SERVER_PID=$!
+sleep 1   # give it a moment to bind
+
+
+./rc localhost $PORT < $TC_DIR/client1.in > $TC_DIR/client1.out 2>&1 &
+C1=$!
+
+
+./rc localhost $PORT < $TC_DIR/client2.in > $TC_DIR/client2.out 2>&1 &
+C2=$!
+
+
+sleep 2
+
+
+kill $C1
+
+wait $C2
+
+
+if kill -0 $SERVER_PID 2>/dev/null; then
+  kill $SERVER_PID
+fi
+
+echo "---- diff client2 (forfeit) ----"
+diff -u "$TC_DIR/expected2.out" "$TC_DIR/client2.out"
+
+echo "disconnect test passed"

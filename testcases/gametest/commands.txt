@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PORT=5555
+TC_DIR="testcases/gametest"
+
+# 1) Build
+make all
+
+# 2) Start server in background
+./rpsd $PORT > /dev/null 2>&1 &
+SERVER_PID=$!
+sleep 1
+
+# 3) Launch client #1, capturing both stdout and stderr
+./rc localhost $PORT < $TC_DIR/client1.in \
+    > $TC_DIR/client1.out 2>&1 &
+C1=$!
+
+# 4) Launch client #2, capturing both stdout and stderr
+./rc localhost $PORT < $TC_DIR/client2.in \
+    > $TC_DIR/client2.out 2>&1 &
+C2=$!
+
+# 5) Wait for both clients to finish
+wait "$C1"
+wait "$C2"
+
+# 6) Tear down server if still running
+if kill -0 "$SERVER_PID" 2>/dev/null; then
+  kill "$SERVER_PID"
+fi
+
+# 7) Show diffs
+echo "---- diff client1 ----"
+diff -u "$TC_DIR/expected1.out" "$TC_DIR/client1.out"
+
+echo "---- diff client2 ----"
+diff -u "$TC_DIR/expected2.out" "$TC_DIR/client2.out"
+
+echo "✅  All tests passed"
